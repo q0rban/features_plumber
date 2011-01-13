@@ -10,13 +10,65 @@
  * Implements hook_features_export_alter().
  */
 function features_plumber_features_export_alter(&$export, $module_name) {
-  dpm($export, $module_name);
+  dpm($export, 'Export');
+
+  $cleanup = array();
+  foreach (features_plumber_records_load_all() as $name => $record) {
+    if (empty($module_name) || $module_name == $record->feature) {
+      // If this is a depencency, we need a different part of the $export array.
+      if ($record->component == 'dependencies') {
+        $array = &$export['dependencies'];
+      }
+      elseif (isset($export['features'][$record->component])) {
+        $array = &$export['features'][$record->component];
+      }
+      else {
+        continue;
+      }
+
+      if (_features_plumber_array_search_unset($record->component_val, $array)) {
+        $cleanup[$record->component] = TRUE;
+      }
+    }
+  }
+
+  foreach (array_keys($cleanup) as $component) {
+    $function = "features_plumber_export_{$component}_cleanup";
+    if (function_exists($function)) {
+      $function($export, $module_name);
+    }
+  }
 }
 
 /**
  * Load all records.
  */
 function features_plumber_records_load_all($reset = FALSE) {
-  ctools_include('export.inc');
+  ctools_include('export');
   return ctools_export_crud_load_all('features_plumber', $reset);
+}
+
+/**
+ * Cleanup after Views removals.
+ */
+function features_plumber_export_views_cleanup(&$export) {
+  if (empty($export['features']['views'])) {
+    unset($export['features']['views_api']);
+    _features_plumber_array_search_unset('views', $export['dependencies']);
+  }
+}
+
+/**
+ * Helper function to unset a value from an array, if it exists.
+ */
+function _features_plumber_array_search_unset($value, &$array) {
+  // Now that we have our array, unset as needed.
+  $key = array_search($value, $array);
+  if ($key !== FALSE) {
+    // Since we're unsetting something, we should go through at the end and
+    // do any necessary cleanup.
+    unset($array[$key]);
+    return TRUE;
+  }
+  return FALSE;
 }
