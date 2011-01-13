@@ -1,0 +1,6 @@
+; $Id$
+name = Features Plumber
+description = Remove unwanted components from your Features
+dependencies[] = features
+dependencies[] = ctools
+core = 6.x

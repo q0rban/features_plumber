@@ -1,0 +1,22 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Features Plumber module.
+ */
+
+/**
+ * Implements hook_features_export_alter().
+ */
+function features_plumber_features_export_alter(&$export, $module_name) {
+  dpm($export, $module_name);
+}
+
+/**
+ * Load all records.
+ */
+function features_plumber_records_load_all($reset = FALSE) {
+  ctools_include('export.inc');
+  return ctools_export_crud_load_all('features_plumber', $reset);
+}
