@@ -42,9 +42,6 @@ function drush_features_plumber_features_component_remove_validate($feature = NU
     '@component-val' => $component_val,
   );
 
-  $name = features_plumber_generate_name($feature, $component, $component_val);
-  $records = features_plumber_records_load_all();
-
   if (!isset($feature) || !isset($component) || !isset($component_val)) {
     $message = 'You must specify all arguments for this command';
   }
@@ -54,7 +51,7 @@ function drush_features_plumber_features_component_remove_validate($feature = NU
   elseif (!(($module = feature_load($feature, TRUE)) && module_exists($feature))) {
     $message = 'There is no feature named @feature on this site.';
   }
-  elseif (isset($records[$name])) {
+  elseif (features_plumber_record_exists($feature, $component, $component_val)) {
     $message = '@component->@component-val has already been removed from feature @feature.';
   }
   else {
@@ -84,13 +81,7 @@ function drush_features_component_remove($feature, $component, $component_val) {
     '@component-val' => $component_val,
   );
 
-  $record = new stdClass();
-  $record->name = features_plumber_generate_name($feature, $component, $component_val);
-  $record->feature = $feature;
-  $record->component = $component;
-  $record->component_val = $component_val;
-
-  if (features_plumber_record_save($record)) {
+  if (features_plumber_record_create($feature, $component, $component_val)) {
     drush_log(dt('Successfully wrote the record to features_plumber.'));
     if (drush_confirm(dt('About to overrwrite the feature code. Do you really want to continue?'))) {
       drush_backend_invoke("features-update $feature");

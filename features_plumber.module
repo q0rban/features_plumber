@@ -17,29 +17,196 @@ function features_plumber_menu() {
   $items['features-plumber-ahah'] = array(
     'title' => 'Features Plumber AHAH Callback',
     'description' => 'AHAH callback to remove components from a feature.',
-    'page callback' => 'features_plumber_ahah_callback',
-    'page arguments' => array(),
+    'page callback' => 'features_plumber_form_ahah_callback',
     'access callback' => 'user_access',
     'access arguments' => array('administer features'),
-    'file' => "features.admin.inc",
-    'file path' => drupal_get_path('module', 'features'),
     'type' => MENU_CALLBACK,
   );
 
   return $items;
 }
 
-function features_plumber_ahah_callback() {
+/**
+ * Implements hook_menu_alter().
+ */
+function features_plumber_menu_alter(&$items) {
+  $items['admin/build/features/export/populate']['page callback'] = 'features_plumber_export_build_form_populate';
+}
+
+function features_plumber_export_build_form_populate() {
+  $form_state = array('storage' => NULL, 'submitted' => FALSE);
+  $form_build_id = $_POST['form_build_id'];
+
+  if ($form = form_get_cache($form_build_id, $form_state)) {
+    module_load_include('inc', 'features', 'features.export');
+    $submitted = $_POST;
+    $module_name = isset($form['#feature']->name) ? $form['#feature']->name : $form_build_id;
+
+    $stub = array();
+
+    // Assemble the combined component list
+    $components = array_keys(features_get_components());
+    foreach ($components as $component) {
+      // User-selected components take precedence.
+      if (!empty($submitted['sources'][$component])) {
+        // Validate and set the default value for each selected option. This
+        foreach ($submitted['sources'][$component] as $key => $value) {
+          if (isset($form['export']['sources'][$component]['#options'][$key])) {
+            $form['export']['sources'][$component]['#default_value'][$key] = $value;
+          }
+        }
+        $stub[$component] = features_dom_decode_options(array_filter($submitted['sources'][$component]));
+      }
+      // Only fallback to an existing feature's values if there are no export options for the component.
+      else if (!isset($form['export']['sources'][$component]) && !empty($form['#feature']->info['features'][$component])) {
+        $stub[$component] = $form['#feature']->info['features'][$component];
+      }
+    }
+
+    // Assemble dependencies
+    $dependencies = isset($submitted['sources']['dependencies']) ? $submitted['sources']['dependencies'] : array();
+
+    // Generate populated feature
+    $export = features_populate($stub, $dependencies, $module_name);
+
+
+    $new_elements = features_plumber_form(array(), $export, $stub, $module_name);
+    $new_elements = form_builder('features_export_form', $new_elements, $form_state);
+    $output = drupal_render($new_elements);
+    //$output = drupal_get_form('features_plumber_form', $export, $stub, $module_name);
+
+    $form['export']['features']['#value'] = $output;
+
+    // Re-cache form. This ensures that if the form fails to validate, selected
+    // values are preserved for the user.
+    form_set_cache($submitted['form_build_id'], $form, $form_state);
+
+    $output .= features_plumber_ahah_js();
+    $output .= theme('status_messages');
+
+    drupal_json(array('status' => TRUE, 'data' => $output));
+    exit;
+  }
+  drupal_json(array('status' => FALSE, 'data' => ''));
+  exit;
+}
+
+/**
+ * Helper function to pull all the ahah js and output it cleanly.
+ */
+function features_plumber_ahah_js() {
+  // For inline Javascript to validate as XHTML, all Javascript containing
+  // XHTML needs to be wrapped in CDATA. To make that backwards compatible
+  // with HTML 4, we need to comment out the CDATA-tag.
+  $embed_prefix = "\n<!--//--><![CDATA[//><!--\n";
+  $embed_suffix = "\n//--><!]]>\n";
+  $js = drupal_add_js();
+  $data = $js['setting'];
+  $output = '';
+
+  foreach ($data as $key => $value) {
+    if (!isset($value['ahah'])) {
+      unset($data[$key]);
+    }
+  }
+
+  dpm($data);
+
+  if (!empty($data)) {
+    $output = '<script type="text/javascript">';
+    $output .= $embed_prefix;
+    $output .= 'jQuery.extend(Drupal.settings, ';
+    $output .= drupal_to_js(call_user_func_array('array_merge_recursive', $data));
+    $output .= ");";
+    $output .= $embed_suffix;
+    $output .= "</script>\n";
+  }
+
+  return $output;
+}
+
+function features_plumber_form($form_state, $export, $stub, $feature) {
+  $form = array();
+  $form['features_plumber'] = array(
+    '#tree' => TRUE,
+    '#prefix' => '<div id="features-plumber-form">',
+    '#suffix' => '</div>',
+  );
+
+  $form['#feature'] = $feature;
+
+  $form['ahah-results'] = array(
+    '#type' => 'markup',
+    '#value' => '<div id="features-plumber-ahah-results">&nbsp;</div>',
+  );
+
+  $components = $export['features'];
+  $components['dependencies'] = $export['dependencies'];
+
+  $records = features_plumber_records_load_by_feature($feature);
+
+  foreach ($components as $component => $component_vals) {
+    if (features_plumber_component_is_supported($component)) {
+      foreach ($component_vals as $component_val) {
+        if (!in_array($component_val, $stub[$component])) {
+          $name = features_plumber_generate_name($feature, $component, $component_val);
+          $default_value = !isset($records[$name]); // Backwards!
+          $element = features_plumber_record_form_element($component, $component_val, $default_value);
+          //$element = form_expand_ahah($element);
+          $form['features_plumber'][$component][$component_val] = $element;
+        }
+      }
+    }
+  }
+
+  $form['components'] = array(
+    '#type' => 'markup',
+    '#value' => theme('features_plumber_components', $export, $stub),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+    '#attributes' => array(
+      'style' => 'display: none;',
+    ),
+  );
+
+  return $form;
+}
+
+function features_plumber_form_ahah_callback() {
   $form_state = array('storage' => NULL, 'submitted' => FALSE);
   $form_build_id = $_POST['form_build_id'];
 
   if ($form = form_get_cache($form_build_id, $form_state)) {
     $args = $form['#parameters'];
     $form_id = array_shift($args);
-    $form_state['post'] = $form['#post'] = $_POST;
-    $form['#programmed'] = $form['#redirect'] = FALSE;
-    //drupal_process_form($form_id, $form, $form_state);
-    dpm($form_state);
+    $form['#post'] = $_POST;
+    $form['#redirect'] = FALSE;
+    $form['#programmed'] = FALSE;
+    $form_state['post'] = $_POST;
+    drupal_process_form($form_id, $form, $form_state);
+    $feature = $form['#feature'];
+
+    foreach ($form_state['values']['features_plumber'] as $component => $array) {
+      foreach ($array as $component_val => $keep) {
+        $t_args = array(
+          '@feature' => $feature,
+          '@component' => $component,
+          '@component-val' => $component_val,
+        );
+
+        if (!$keep) {
+          drupal_set_message('Saving');
+          if (!features_plumber_record_create($feature, $component, $component_val)) {
+            drupal_set_message('There was a problem saving @component/@component-val to feature @feature.');
+          }
+        }
+      }
+    }
+
+    //$form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
 
     drupal_json(array('status' => TRUE, 'data' => theme('status_messages')));
     exit;
@@ -48,25 +215,23 @@ function features_plumber_ahah_callback() {
   exit;
 }
 
+function theme_features_plumber_form($form) {
+  return drupal_render($form);
+}
+
 /**
  * Implementation of hook_theme().
  */
 function features_plumber_theme() {
   $items = array();
 
+  $items['features_plumber_components'] = 
   $items['features_plumber_component_list'] = array();
+  $items['features_plumber_form'] = array(
+    'arguments' => array('form' => NULL),
+  );
 
   return $items;
-}
-
-/**
- * Implements hook_theme_registry_alter().
- *
- * Since theme_features_components doesn't pass along the component to 
- * theme_features_component_list, we override the function and do it ourselves.
- */
-function features_plumber_theme_registry_alter(&$items) {
-  $items['features_components']['function'] = 'theme_features_plumber_components';
 }
 
 /**
@@ -153,21 +318,19 @@ function features_plumber_supported_components() {
     'variable',
     'context',
     'content',
-    'node',
     'dependencies',
   );
 }
 
-function features_plumber_record_form_element($component, $component_val, $label = NULL) {
+function features_plumber_record_form_element($component, $component_val, $default_value) {
   return array(
     '#type' => 'checkbox',
-    '#default_value' => FALSE, // Backwards!
+    '#default_value' => $default_value,
     '#ahah' => array(
       'path' => 'features-plumber-ahah',
-      'wrapper' => 'features-plumber', //'features-export-populated',
+      'wrapper' => 'features-plumber-ahah-results', //'features-export-populated',
     ),
     '#attributes' => array(
-      'style' => 'display: none;',
       'component' => $component,
       'component_val' => $component_val,
     ),
@@ -178,11 +341,13 @@ function features_plumber_record_form_element($component, $component_val, $label
  * Implements hook_form_alter().
  */
 function features_plumber_form_features_export_form_alter(&$form, $form_state) {
-  dpm($form);
   if (variable_get('features_plumber_hide_component', TRUE)) {
     unset($form['export']['components']['#options']['features_plumber']);
   }
+  drupal_add_js(drupal_get_path('module', 'features_plumber') .'/features_plumber.js');
+  array_unshift($form['buttons']['submit']['#submit'], 'features_plumber_export_form_submit');
 
+  /*
   // Set the feature name to the build id if it doesn't exist.
   $feature_name = isset($form['#feature']->name) ? $form['#feature']->name : $form['#build_id'];
   $records = features_plumber_records_load_by_feature($feature);
@@ -193,10 +358,15 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
   foreach ($form['export']['sources'] as $component => $element) {
     if (features_plumber_component_is_supported($component)) {
       foreach ($element['#options'] as $key => $label) {
-        $form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
+        //$form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
       }
     }
   }
+  */
+}
+
+function features_plumber_export_form_submit($form, &$form_state) {
+  dpm($form_state);
 }
 
 /**
@@ -204,6 +374,10 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
  */
 function features_plumber_features_export_alter(&$export, $module_name) {
   //dpm($export, 'Export');
+
+  if (isset($_POST['form_id']) && $_POST['form_id'] == 'features_export_form' && !isset($module_name)) {
+    //$module_name = $_POST['form_build_id'];
+  }
 
   if (!isset($module_name)) {
     return;
