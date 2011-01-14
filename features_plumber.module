@@ -112,13 +112,12 @@ function theme_features_plumber_components($info, $sources = array()) {
  */
 function theme_features_plumber_component_list($components, $source = array(), $conflicts = array(), $component) {
   $list = array();
-  $plumbable = in_array($component, features_plumber_supported_components());
 
   foreach ($components as $key => $component_val) {
     if (!in_array($component_val, $source)) {
       $id = "$component:$component_val";
       $attributes = array('class' => 'features-detected');
-      if ($plumbable) {
+      if (features_plumber_component_is_supported($component)) {
         $attributes['class'] .= ' features-plumber-plumbable';
         $attributes['component'] = $component;
         $attributes['component_val'] = $component_val;
@@ -142,6 +141,10 @@ function theme_features_plumber_component_list($components, $source = array(), $
   }
 
   return "<span class='features-component-list'>". implode(' ', $list) ."</span>";
+}
+
+function features_plumber_component_is_supported($component) {
+  return in_array($component, features_plumber_supported_components());
 }
 
 function features_plumber_supported_components() {
@@ -188,7 +191,7 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
   $form['features_plumber']['#tree'] = TRUE;
 
   foreach ($form['export']['sources'] as $component => $element) {
-    if (in_array($component, features_plumber_supported_components())) {
+    if (features_plumber_component_is_supported($component)) {
       foreach ($element['#options'] as $key => $label) {
         $form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
       }
@@ -200,10 +203,14 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
  * Implements hook_features_export_alter().
  */
 function features_plumber_features_export_alter(&$export, $module_name) {
-  dpm($export, 'Export');
+  //dpm($export, 'Export');
+
+  if (!isset($module_name)) {
+    return;
+  }
 
   $cleanup = array();
-  foreach (features_plumber_records_load_all() as $name => $record) {
+  foreach (features_plumber_records_load_by_feature($module_name) as $record) {
     if (empty($module_name) || $module_name == $record->feature) {
       // If this is a depencency, we need a different part of the $export array.
       if ($record->component == 'dependencies') {
@@ -216,10 +223,16 @@ function features_plumber_features_export_alter(&$export, $module_name) {
         continue;
       }
 
-      if (_features_plumber_array_search_unset($record->component_val, $array)) {
+      if (isset($array[$record->component_val])) {
+        unset($array[$record->component_val]);
         $cleanup[$record->component] = TRUE;
+        $export['features']['features_plumber'][$record->name] = $record->name;
       }
     }
+  }
+
+  if (!isset($export['features']['features_plumber'])) {
+    $cleanup['features_plumber'] = TRUE;
   }
 
   foreach (array_keys($cleanup) as $component) {
@@ -235,9 +248,15 @@ function features_plumber_features_export_alter(&$export, $module_name) {
  */
 function features_plumber_export_views_cleanup(&$export) {
   if (empty($export['features']['views'])) {
-    unset($export['features']['views_api']);
-    _features_plumber_array_search_unset('views', $export['dependencies']);
+    unset($export['features']['views'], $export['features']['views_api'], $export['dependencies']['views']);
   }
+}
+
+/**
+ * Cleanup after Features Plumber removal.
+ */
+function features_plumber_export_views_cleanup(&$export) {
+  unset($export['dependencies']['features_plumber'], $export['features']['ctools']['features_plumber:features_plumber_records:1']);
 }
 
 /**
