@@ -207,9 +207,7 @@ function features_plumber_ui_form_ahah_callback() {
         );
 
         if (!$keep) {
-          if (!features_plumber_record_create($feature, $component, $component_val)) {
-            drupal_set_message('There was a problem saving @component/@component-val to feature @feature.');
-          }
+          features_plumber_record_create($feature, $component, $component_val);
         }
         else {
           // Ensure other records have been deleted.

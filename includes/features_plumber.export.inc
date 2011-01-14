@@ -55,6 +55,7 @@ function _features_plumber_features_export_alter(&$export, $module_name) {
  */
 function features_plumber_export_views_cleanup(&$export) {
   if (empty($export['features']['views'])) {
+    // @TODO: Clean up other detected dependencies.
     unset($export['features']['views'], $export['features']['views_api'], $export['dependencies']['views']);
   }
 }
@@ -62,8 +63,32 @@ function features_plumber_export_views_cleanup(&$export) {
 /**
  * Cleanup after Features Plumber removal.
  */
+function features_plumber_export_context_cleanup(&$export) {
+  _features_plumber_export_ctools_cleanup('context', $export);
+}
+
+/**
+ * Cleanup after Features Plumber removal.
+ */
+function features_plumber_export_variable_cleanup(&$export) {
+  _features_plumber_export_ctools_cleanup('variable', $export);
+}
+
+/**
+ * Cleanup after Features Plumber removal.
+ */
 function features_plumber_export_features_plumber_cleanup(&$export) {
-  if (empty($export['features']['features_plumber'])) {
-    unset($export['dependencies']['features_plumber'], $export['features']['ctools']['features_plumber:features_plumber_records:1']);
+  _features_plumber_export_ctools_cleanup('features_plumber', $export);
+}
+
+/**
+ * Helper to clean up after all CTools implementing modules.
+ */
+function _features_plumber_export_ctools_cleanup($component, &$export) {
+  if (empty($export['features'][$component])) {
+    $info = _ctools_features_get_info($component);
+    $identifier = "{$info['module']}:{$info['api']}:{$info['current_version']}";
+    unset($export['dependencies'][$info['module']],
+      $export['features']['ctools'][$identifier]);
   }
 }
