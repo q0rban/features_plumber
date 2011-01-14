@@ -17,15 +17,35 @@ function features_plumber_menu() {
   $items['features-plumber-ahah'] = array(
     'title' => 'Features Plumber AHAH Callback',
     'description' => 'AHAH callback to remove components from a feature.',
-    'page callback' => 'features_export_build_form_populate',
+    'page callback' => 'features_plumber_ahah_callback',
     'page arguments' => array(),
     'access callback' => 'user_access',
     'access arguments' => array('administer features'),
-    'type' => MENU_CALLBACK,
     'file' => "features.admin.inc",
+    'file path' => drupal_get_path('module', 'features'),
+    'type' => MENU_CALLBACK,
   );
 
   return $items;
+}
+
+function features_plumber_ahah_callback() {
+  $form_state = array('storage' => NULL, 'submitted' => FALSE);
+  $form_build_id = $_POST['form_build_id'];
+
+  if ($form = form_get_cache($form_build_id, $form_state)) {
+    $args = $form['#parameters'];
+    $form_id = array_shift($args);
+    $form_state['post'] = $form['#post'] = $_POST;
+    $form['#programmed'] = $form['#redirect'] = FALSE;
+    //drupal_process_form($form_id, $form, $form_state);
+    dpm($form_state);
+
+    drupal_json(array('status' => TRUE, 'data' => theme('status_messages')));
+    exit;
+  }
+  drupal_json(array('status' => FALSE, 'data' => ''));
+  exit;
 }
 
 /**
@@ -131,18 +151,17 @@ function features_plumber_supported_components() {
     'context',
     'content',
     'node',
+    'dependencies',
   );
 }
 
 function features_plumber_record_form_element($component, $component_val, $label = NULL) {
   return array(
     '#type' => 'checkbox',
-    '#value' => !FALSE, // Backwards!
+    '#default_value' => FALSE, // Backwards!
     '#ahah' => array(
-      'path' => 'admin/build/features/export/populate',
-      //'wrapper' => 'features-export-populated',
-      'effect' => 'none',
-      'method' => 'append',
+      'path' => 'features-plumber-ahah',
+      'wrapper' => 'features-plumber', //'features-export-populated',
     ),
     '#attributes' => array(
       'style' => 'display: none;',
@@ -169,8 +188,10 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
   $form['features_plumber']['#tree'] = TRUE;
 
   foreach ($form['export']['sources'] as $component => $element) {
-    foreach ($element['#options'] as $key => $label) {
-      $form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
+    if (in_array($component, features_plumber_supported_components())) {
+      foreach ($element['#options'] as $key => $label) {
+        $form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
+      }
     }
   }
 }

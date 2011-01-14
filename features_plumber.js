@@ -6,7 +6,8 @@
  */
 
 Drupal.behaviors.featuresPlumber = function(context) {
-  // By not filtering to context, we can manipulate these.
+  $('#features-export-populated', context).after('<div id="features-plumber"></div>');
+  // By not filtering to context, this will call every time.
   $('#features-export-populated .features-plumber-plumbable').each(function () {
     var item = $(this);
     var component = item.attr('component');
