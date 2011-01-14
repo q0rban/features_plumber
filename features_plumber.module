@@ -69,11 +69,7 @@ function features_plumber_export_build_form_populate() {
     // Generate populated feature
     $export = features_populate($stub, $dependencies, $module_name);
 
-
-    $new_elements = features_plumber_form(array(), $export, $stub, $module_name);
-    $new_elements = form_builder('features_export_form', $new_elements, $form_state);
-    $output = drupal_render($new_elements);
-    //$output = drupal_get_form('features_plumber_form', $export, $stub, $module_name);
+    $output = drupal_get_form('features_plumber_form', $export, $stub, $module_name);
 
     $form['export']['features']['#value'] = $output;
 
@@ -127,11 +123,7 @@ function features_plumber_ahah_js() {
 
 function features_plumber_form($form_state, $export, $stub, $feature) {
   $form = array();
-  $form['features_plumber'] = array(
-    '#tree' => TRUE,
-    '#prefix' => '<div id="features-plumber-form">',
-    '#suffix' => '</div>',
-  );
+  $form['features_plumber']['#tree'] = TRUE;
 
   $form['#feature'] = $feature;
 
@@ -206,7 +198,7 @@ function features_plumber_form_ahah_callback() {
       }
     }
 
-    //$form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+    $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
 
     drupal_json(array('status' => TRUE, 'data' => theme('status_messages')));
     exit;
