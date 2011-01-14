@@ -234,6 +234,11 @@ function features_plumber_features_export_alter(&$export, $module_name) {
   if (!isset($export['features']['features_plumber'])) {
     $cleanup['features_plumber'] = TRUE;
   }
+  // Make sure these guys are here.
+  else {
+    $export['dependencies']['features_plumber'] = 'features_plumber';
+    ctools_features_export(array('features_plumber'), $export, $module_name);
+  }
 
   foreach (array_keys($cleanup) as $component) {
     $function = "features_plumber_export_{$component}_cleanup";
@@ -255,8 +260,10 @@ function features_plumber_export_views_cleanup(&$export) {
 /**
  * Cleanup after Features Plumber removal.
  */
-function features_plumber_export_views_cleanup(&$export) {
-  unset($export['dependencies']['features_plumber'], $export['features']['ctools']['features_plumber:features_plumber_records:1']);
+function features_plumber_export_features_plumber_cleanup(&$export) {
+  if (empty($export['features']['features_plumber'])) {
+    unset($export['dependencies']['features_plumber'], $export['features']['ctools']['features_plumber:features_plumber_records:1']);
+  }
 }
 
 /**

@@ -33,7 +33,7 @@ function features_plumber_schema() {
       'key name' => 'Name',
       'primary key' => 'record_id',
       'identifier' => 'features_plumber_record', // Exports will be as $myobj
-      'default hook' => 'features_plumber',  // Function hook name.
+      'default hook' => 'features_plumber_defaults',  // Function hook name.
       'api' => array(
         'owner' => 'features_plumber',
         'api' => 'features_plumber_records',  // Base name for api include files.
