@@ -1,0 +1,5 @@
+; $Id$
+name = Features Plumber UI
+description = Modify Features as they are being created.
+dependencies[] = features_plumber
+core = 6.x

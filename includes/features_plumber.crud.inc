@@ -6,12 +6,11 @@
  * CRUD functions for Features Plumber.
  */
 
-ctools_include('export');
-
 /**
  * Load all records.
  */
 function features_plumber_records_load_all($reset = FALSE) {
+  ctools_include('export');
   return ctools_export_crud_load_all('features_plumber', $reset);
 }
 
@@ -19,6 +18,7 @@ function features_plumber_records_load_all($reset = FALSE) {
  * Load all records by feature name.
  */
 function features_plumber_records_load_by_feature($feature) {
+  ctools_include('export');
   return ctools_export_load_object('features_plumber', 'conditions', array('feature' => $feature));
 }
 
@@ -47,6 +47,13 @@ function features_plumber_record_save(&$record) {
     ctools_export_load_object_reset('features_plumber');
   }
   return $return;
+}
+
+/**
+ * Delete a record from the database.
+ */
+function features_plumber_record_delete($feature, $component, $component_val) {
+  db_query("DELETE FROM {features_plumber} WHERE feature = '%s' AND component = '%s' AND component_val = '%s'", $feature, $component, $component_val);
 }
 
 /**
