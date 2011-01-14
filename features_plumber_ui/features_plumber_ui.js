@@ -9,7 +9,7 @@ Drupal.behaviors.featuresPlumberUi = function(context) {
   // By not filtering to context, this will call every time.
   Drupal.settings.featuresPlumberUiAction = Drupal.settings.featuresPlumberUiAction || $('#features-export-form').attr('action');
   var action = Drupal.settings.featuresPlumberUiAction;
-  var form = $('#features-plumber-ui-form');
+  var form = $('#features-export-populated');
 
   //form.children().unwrap();
   $('.features-plumber-ui-plumbable', form).each(function () {

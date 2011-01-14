@@ -32,6 +32,35 @@ function features_plumber_ui_menu_alter(&$items) {
 }
 
 /**
+ * Implements hook_form_alter().
+ */
+function features_plumber_ui_form_features_export_form_alter(&$form, $form_state) {
+  if (variable_get('features_plumber_ui_hide_component', TRUE)) {
+    unset($form['export']['components']['#options']['features_plumber']);
+  }
+  if (isset($form['#feature']->info)) {
+    $feature = $form['#feature'];
+    $form['export']['features']['#value'] = drupal_get_form('features_plumber_ui_form', $feature->info, $feature->info['features'], $feature->name);
+  }
+  drupal_add_js(drupal_get_path('module', 'features_plumber_ui') .'/features_plumber_ui.js');
+  array_unshift($form['buttons']['submit']['#submit'], 'features_plumber_ui_export_form_submit');
+}
+
+/**
+ * Submit handler for features_export_form.
+ */
+function features_plumber_ui_export_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+  features_plumber_include('crud');
+
+  foreach (features_plumber_records_load_by_feature($values['form_build_id']) as $record) {
+    $record->feature = $values['name'];
+    $record->name = features_plumber_generate_name($record->feature, $record->component, $record->component_val);
+    features_plumber_record_save($record);
+  }
+}
+
+/**
  * Replacement callback for features_build_form_populate().
  * @see features_plumber_ui_menu_alter().
  */
@@ -196,30 +225,29 @@ function features_plumber_ui_form_ahah_callback() {
     $form['#programmed'] = FALSE;
     $form_state['post'] = $_POST;
     drupal_process_form($form_id, $form, $form_state);
-    $feature = $form['#feature'];
 
-    foreach ($form_state['values']['features_plumber_ui'] as $component => $array) {
-      foreach ($array as $component_val => $keep) {
-        $t_args = array(
-          '@feature' => $feature,
-          '@component' => $component,
-          '@component-val' => $component_val,
-        );
+    if (isset($form['#feature']) && is_string($form['#feature']) && $feature = $form['#feature']) {
+      foreach ($form_state['values']['features_plumber_ui'] as $component => $array) {
+        foreach ($array as $component_val => $keep) {
+          $t_args = array(
+            '@feature' => $feature,
+            '@component' => $component,
+            '@component-val' => $component_val,
+          );
 
-        if (!$keep) {
-          features_plumber_record_create($feature, $component, $component_val);
-        }
-        else {
-          // Ensure other records have been deleted.
-          features_plumber_record_delete($feature, $component, $component_val);
+          if (!$keep) {
+            features_plumber_record_create($feature, $component, $component_val);
+          }
+          else {
+            // Ensure other records have been deleted.
+            features_plumber_record_delete($feature, $component, $component_val);
+          }
         }
       }
+      $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+      drupal_json(array('status' => TRUE, 'data' => theme('status_messages')));
+      exit;
     }
-
-    $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
-
-    drupal_json(array('status' => TRUE, 'data' => theme('status_messages')));
-    exit;
   }
   drupal_json(array('status' => FALSE, 'data' => ''));
   exit;
@@ -313,29 +341,4 @@ function theme_features_plumber_ui_component_list($components, $source = array()
   }
 
   return "<span class='features-component-list'>". implode(' ', $list) ."</span>";
-}
-
-/**
- * Implements hook_form_alter().
- */
-function features_plumber_ui_form_features_export_form_alter(&$form, $form_state) {
-  if (variable_get('features_plumber_ui_hide_component', TRUE)) {
-    unset($form['export']['components']['#options']['features_plumber']);
-  }
-  drupal_add_js(drupal_get_path('module', 'features_plumber_ui') .'/features_plumber_ui.js');
-  array_unshift($form['buttons']['submit']['#submit'], 'features_plumber_ui_export_form_submit');
-}
-
-/**
- * Submit handler for features_export_form.
- */
-function features_plumber_ui_export_form_submit($form, &$form_state) {
-  $values = $form_state['values'];
-  features_plumber_include('crud');
-
-  foreach (features_plumber_records_load_by_feature($values['form_build_id']) as $record) {
-    $record->feature = $values['name'];
-    $record->name = features_plumber_generate_name($record->feature, $record->component, $record->component_val);
-    features_plumber_record_save($record);
-  }
 }
