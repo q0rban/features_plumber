@@ -28,54 +28,128 @@ function features_plumber_menu() {
   return $items;
 }
 
+/**
+ * Implementation of hook_theme().
+ */
+function features_plumber_theme() {
+  $items = array();
+
+  $items['features_plumber_component_list'] = array();
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Since theme_features_components doesn't pass along the component to 
+ * theme_features_component_list, we override the function and do it ourselves.
+ */
 function features_plumber_theme_registry_alter(&$items) {
-  $function = $items['features_component_list']['function'];
-  $items['features_component_list']['function'] = 'theme_features_plumber_component_list';
-  variable_set('features_component_list_theme_function', $function);
+  $items['features_components']['function'] = 'theme_features_plumber_components';
+}
+
+/**
+ * Theme a set of features export components.
+ */
+function theme_features_plumber_components($info, $sources = array()) {
+  $output = '';
+  $rows = array();
+  $components = features_get_components();
+  if (!empty($info['features']) || !empty($info['dependencies']) || !empty($sources)) {
+    $export = array_unique(array_merge(
+      array_keys($info['features']),
+      array_keys($sources),
+      array('dependencies')
+    ));
+    foreach ($export as $component) {
+      if ($component === 'dependencies') {
+        $feature_items = isset($info[$component]) ? $info[$component] : array();
+      }
+      else {
+        $feature_items = isset($info['features'][$component]) ? $info['features'][$component] : array();
+      }
+      $source_items = isset($sources[$component]) ? $sources[$component] : array();
+      if (!empty($feature_items) || !empty($source_items)) {
+        $rows[] = array(array(
+          'data' => isset($components[$component]['name']) ? $components[$component]['name'] : $component,
+          'header' => TRUE
+        ));
+        $rows[] = array(array(
+          'data' => theme('features_plumber_component_list', $feature_items, $source_items, array(), $component),
+          'class' => 'component'
+        ));
+      }
+    }
+    $output .= theme('table', array(), $rows);
+    $output .= theme('features_component_key');
+  }
+  return $output;
 }
 
 /**
  * Theme individual components in a component list.
  */
-function theme_features_plumber_component_list($components, $source = array(), $conflicts = array()) {
-  $function = variable_get('features_component_list_theme_function', 'theme_features_component_list');
+function theme_features_plumber_component_list($components, $source = array(), $conflicts = array(), $component) {
+  $list = array();
+  $plumbable = in_array($component, features_plumber_supported_components());
 
-  $form_state = array();
-  $submitted = $_POST;
-
-  // Check to see if there's a submitted form.
-  if (isset($submitted['form_id'])
-    && $submitted['form_id'] == 'features_export_form'
-    && $form = form_get_cache($submitted['form_build_id'], $form_state)
-  ) {
-    $list = array();
-
-    foreach ($components as $key => $component) {
-      if (!in_array($component, $source)) {
-        $value = isset($form['features_plumber']['views'][$key]) ? drupal_render($form['features_plumber']['views'][$key]) : check_plain($component);
-        $list[] = "<span class='features-detected'>". $value ."</span>";
+  foreach ($components as $key => $component_val) {
+    if (!in_array($component_val, $source)) {
+      $id = "$component:$component_val";
+      $attributes = array('class' => 'features-detected');
+      if ($plumbable) {
+        $attributes['class'] .= ' features-plumber-plumbable';
+        $attributes['component'] = $component;
+        $attributes['component_val'] = $component_val;
       }
-      elseif (is_array($conflicts) && in_array($component, $conflicts)) {
-        $list[] = "<span class='features-conflict'>". check_plain($component) ."</span>";
-      }
-      else {
-        $list[] = "<span class='features-source'>". check_plain($component) ."</span>";
-      }
+      $list[] = '<span'. drupal_attributes($attributes) .'>'. check_plain($component_val) ."</span>";
     }
-
-    foreach ($source as $component) {
-      // If a source component is no longer in the items, it was removed because
-      // it is provided by a dependency.
-      if (!in_array($component, $components)) {
-        $list[] = "<span class='features-dependency'>". check_plain($component) ."</span>";
-      }
+    elseif (is_array($conflicts) && in_array($component_val, $conflicts)) {
+      $list[] = "<span class='features-conflict'>". check_plain($component_val) ."</span>";
     }
+    else {
+      $list[] = "<span class='features-source'>". check_plain($component_val) ."</span>";
+    }
+  }
 
-    return "<span class='features-component-list'>". implode(' ', $list) ."</span>";
+  foreach ($source as $component_val) {
+    // If a source component is no longer in the items, it was removed because
+    // it is provided by a dependency.
+    if (!in_array($component_val, $components)) {
+      $list[] = "<span class='features-dependency'>". check_plain($component_val) ."</span>";
+    }
   }
-  else {
-    return $function($components, $source, $conflicts);
-  }
+
+  return "<span class='features-component-list'>". implode(' ', $list) ."</span>";
+}
+
+function features_plumber_supported_components() {
+  return array(
+    'views',
+    'variable',
+    'context',
+    'content',
+    'node',
+  );
+}
+
+function features_plumber_record_form_element($component, $component_val, $label = NULL) {
+  return array(
+    '#type' => 'checkbox',
+    '#value' => !FALSE, // Backwards!
+    '#ahah' => array(
+      'path' => 'admin/build/features/export/populate',
+      //'wrapper' => 'features-export-populated',
+      'effect' => 'none',
+      'method' => 'append',
+    ),
+    '#attributes' => array(
+      'style' => 'display: none;',
+      'component' => $component,
+      'component_val' => $component_val,
+    ),
+  );
 }
 
 /**
@@ -91,17 +165,12 @@ function features_plumber_form_features_export_form_alter(&$form, $form_state) {
   $feature_name = isset($form['#feature']->name) ? $form['#feature']->name : $form['#build_id'];
   $records = features_plumber_records_load_by_feature($feature);
 
+  drupal_add_js(drupal_get_path('module', 'features_plumber') .'/features_plumber.js');
+  $form['features_plumber']['#tree'] = TRUE;
+
   foreach ($form['export']['sources'] as $component => $element) {
     foreach ($element['#options'] as $key => $label) {
-      $form['features_plumber'][$component][$key] = array(
-        '#type' => 'checkbox',
-        '#title' => $label,
-        '#default_value' => !FALSE, // Backwards!
-        '#ahah' => array(
-          'path' => 'admin/build/features/export/populate',
-          'wrapper' => 'features-export-populated',
-        ),
-      );
+      $form['features_plumber'][$component][$key] = features_plumber_record_form_element($component, $key, $label);
     }
   }
 }
