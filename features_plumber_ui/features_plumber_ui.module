@@ -21,6 +21,25 @@ function features_plumber_ui_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['admin/build/features/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Modify export settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('features_plumber_ui_settings_form'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer features'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => "features_plumber_ui.admin.inc",
+    'weight' => 11,
+  );
+
+  $items['admin/build/features/settings/export'] = array(
+    'title' => 'Export',
+    'description' => 'Modify export settings.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
   return $items;
 }
 

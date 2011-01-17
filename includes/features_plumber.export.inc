@@ -27,7 +27,9 @@ function _features_plumber_features_export_alter(&$export, $module_name) {
     if (isset($array[$record->component_val])) {
       unset($array[$record->component_val]);
       $cleanup[$record->component] = TRUE;
-      $export['features']['features_plumber'][$record->name] = $record->name;
+      if (variable_get('features_plumber_export_records', TRUE)) {
+        $export['features']['features_plumber'][$record->name] = $record->name;
+      }
     }
   }
 
