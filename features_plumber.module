@@ -6,6 +6,9 @@
  * Features Plumber module.
  */
 
+// Wildcard Feature name.
+define('FEATURES_PLUMBER_WILDCARD', '*');
+
 /**
  * Include Features Plumber files.
  */
