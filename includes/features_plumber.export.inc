@@ -13,23 +13,21 @@ function _features_plumber_features_export_alter(&$export, $module_name) {
   $cleanup = array();
   features_plumber_include('crud');
   foreach (features_plumber_records_load_by_feature($module_name) as $record) {
-    if (empty($module_name) || $module_name == $record->feature) {
-      // If this is a depencency, we need a different part of the $export array.
-      if ($record->component == 'dependencies') {
-        $array = &$export['dependencies'];
-      }
-      elseif (isset($export['features'][$record->component])) {
-        $array = &$export['features'][$record->component];
-      }
-      else {
-        continue;
-      }
+    // If this is a depencency, we need a different part of the $export array.
+    if ($record->component == 'dependencies') {
+      $array = &$export['dependencies'];
+    }
+    elseif (isset($export['features'][$record->component])) {
+      $array = &$export['features'][$record->component];
+    }
+    else {
+      continue;
+    }
 
-      if (isset($array[$record->component_val])) {
-        unset($array[$record->component_val]);
-        $cleanup[$record->component] = TRUE;
-        $export['features']['features_plumber'][$record->name] = $record->name;
-      }
+    if (isset($array[$record->component_val])) {
+      unset($array[$record->component_val]);
+      $cleanup[$record->component] = TRUE;
+      $export['features']['features_plumber'][$record->name] = $record->name;
     }
   }
 

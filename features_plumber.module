@@ -7,7 +7,7 @@
  */
 
 // Wildcard Feature name.
-define('FEATURES_PLUMBER_WILDCARD', '*');
+define('FEATURES_PLUMBER_WILDCARD', 'all');
 
 /**
  * Include Features Plumber files.

@@ -30,12 +30,18 @@ function features_plumber_drush_command() {
       'component-value' => 'The value of the component, ie `frontpage` (the machine name of a view.',
     ),
     'aliases' => array('fcr'),
+    'examples' => array(
+      'drush fcr example_feature views frontpage' => dt('Do not export the frontpage view to the example_feature feature.'),
+      'drush fcr all views frontpage' => dt('Ensure that the frontpage view is never autodetected for any feature.'),
+    ),
   );
 
   return $items;
 }
 
 function drush_features_plumber_features_component_remove_validate($feature = NULL, $component = NULL, $component_val = NULL) {
+  features_plumber_include('crud');
+
   $dt_args = array(
     '@feature' => $feature,
     '@component' => $component,
@@ -48,13 +54,18 @@ function drush_features_plumber_features_component_remove_validate($feature = NU
   elseif (!features_plumber_component_is_supported($component)) {
     $message = 'The component @component is unsupported.';
   }
-  elseif (!(($module = feature_load($feature, TRUE)) && module_exists($feature))) {
+  elseif (!($feature == FEATURES_PLUMBER_WILDCARD || (module_exists($feature) && $module = feature_load($feature, TRUE)))) {
     $message = 'There is no feature named @feature on this site.';
   }
   elseif (features_plumber_record_exists($feature, $component, $component_val)) {
-    $message = '@component->@component-val has already been removed from feature @feature.';
+    if ($feature == FEATURES_PLUMBER_WILDCARD) {
+      $message = '@component->@component-val has already been removed from all features.';
+    }
+    else {
+      $message = '@component->@component-val has already been removed from feature @feature.';
+    }
   }
-  else {
+  elseif ($feature != FEATURES_PLUMBER_WILDCARD) {
     $dt_args['@feature'] = $module->name;
     $component_vals = array();
     if ($component == 'dependencies') {
@@ -83,7 +94,13 @@ function drush_features_component_remove($feature, $component, $component_val) {
 
   if (features_plumber_record_create($feature, $component, $component_val)) {
     drush_log(dt('Successfully wrote the record to features_plumber.'));
-    if (drush_confirm(dt('About to overrwrite the feature code. Do you really want to continue?'))) {
+    if ($feature == FEATURES_PLUMBER_WILDCARD) {
+      drush_log(dt('Successfully queued component @component->@component-val to no longer auto-detect.', $dt_args), 'success');
+      if (drush_confirm(dt('Would you like to re-export all your features now?'))) {
+        drush_backend_invoke('features-update-all');
+      }
+    }
+    elseif (drush_confirm(dt('About to overrwrite the feature code. Do you really want to continue?'))) {
       drush_backend_invoke("features-update $feature");
     }
   }
