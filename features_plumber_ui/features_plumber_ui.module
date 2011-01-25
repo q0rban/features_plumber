@@ -1,5 +1,5 @@
 <?php
-// $Id: features_plumber_ui.module,v 1.1 2011/01/19 21:16:44 q0rban Exp $
+// $Id: features_plumber_ui.module,v 1.2 2011/01/25 15:18:46 q0rban Exp $
 
 /**
  * @file
@@ -61,7 +61,7 @@ function features_plumber_ui_form_features_export_form_alter(&$form, $form_state
     $feature = $form['#feature'];
     $form['export']['features']['#value'] = drupal_get_form('features_plumber_ui_form', $feature->info, $feature->info['features'], $feature->name);
   }
-  drupal_add_js(drupal_get_path('module', 'features_plumber_ui') .'/features_plumber_ui.js');
+  drupal_add_js(drupal_get_path('module', 'features_plumber_ui') . '/features_plumber_ui.js');
   array_unshift($form['buttons']['submit']['#submit'], 'features_plumber_ui_export_form_submit');
 }
 
@@ -278,7 +278,7 @@ function features_plumber_ui_form_ahah_callback() {
 function features_plumber_ui_theme() {
   $items = array();
 
-  $items['features_plumber_ui_components'] = 
+  $items['features_plumber_ui_components'] =
   $items['features_plumber_ui_component_list'] = array();
 
   return $items;
@@ -341,13 +341,13 @@ function theme_features_plumber_ui_component_list($components, $source = array()
         $attributes['component'] = $component;
         $attributes['component_val'] = $component_val;
       }
-      $list[] = '<span'. drupal_attributes($attributes) .'>'. check_plain($component_val) ."</span>";
+      $list[] = '<span' . drupal_attributes($attributes) . '>' . check_plain($component_val) . "</span>";
     }
     elseif (is_array($conflicts) && in_array($component_val, $conflicts)) {
-      $list[] = "<span class='features-conflict'>". check_plain($component_val) ."</span>";
+      $list[] = "<span class='features-conflict'>" . check_plain($component_val) . "</span>";
     }
     else {
-      $list[] = "<span class='features-source'>". check_plain($component_val) ."</span>";
+      $list[] = "<span class='features-source'>" . check_plain($component_val) . "</span>";
     }
   }
 
@@ -355,9 +355,9 @@ function theme_features_plumber_ui_component_list($components, $source = array()
     // If a source component is no longer in the items, it was removed because
     // it is provided by a dependency.
     if (!in_array($component_val, $components)) {
-      $list[] = "<span class='features-dependency'>". check_plain($component_val) ."</span>";
+      $list[] = "<span class='features-dependency'>" . check_plain($component_val) . "</span>";
     }
   }
 
-  return "<span class='features-component-list'>". implode(' ', $list) ."</span>";
+  return "<span class='features-component-list'>" . implode(' ', $list) . "</span>";
 }
