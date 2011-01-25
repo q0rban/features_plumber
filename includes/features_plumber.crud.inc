@@ -1,5 +1,5 @@
 <?php
-// $Id: features_plumber.crud.inc,v 1.2 2011/01/25 15:18:46 q0rban Exp $
+// $Id: features_plumber.crud.inc,v 1.3 2011/01/25 15:40:34 q0rban Exp $
 
 /**
  * @file
@@ -84,7 +84,11 @@ function features_plumber_record_save(&$record) {
  *   The component value, for instance 'frontpage'.
  */
 function features_plumber_record_delete($feature, $component, $component_val) {
-  db_query("DELETE FROM {features_plumber} WHERE feature = '%s' AND component = '%s' AND component_val = '%s'", $feature, $component, $component_val);
+  db_delete('features_plumber')
+  ->condition('feature', $feature)
+  ->condition('component', $component)
+  ->condition('component_val', $component_val)
+  ->execute();
 }
 
 /**
