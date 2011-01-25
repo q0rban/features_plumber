@@ -1,4 +1,4 @@
-$Id$
+$Id: README.txt,v 1.1 2011/01/17 18:07:41 q0rban Exp $
 
 This module is useful for feature development using the Features module[1].
 Occasionally the Features module auto detects components that you do not want
