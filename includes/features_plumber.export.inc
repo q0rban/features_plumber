@@ -1,5 +1,5 @@
 <?php
-// $Id: features_plumber.export.inc,v 1.1 2011/01/19 21:16:44 q0rban Exp $
+// $Id: features_plumber.export.inc,v 1.2 2011/01/27 21:21:53 q0rban Exp $
 
 /**
  * @file
@@ -72,6 +72,13 @@ function features_plumber_export_context_cleanup(&$export) {
  */
 function features_plumber_export_variable_cleanup(&$export) {
   _features_plumber_export_ctools_cleanup('variable', $export);
+}
+
+/**
+ * Cleanup after Features Plumber removal.
+ */
+function features_plumber_export_box_cleanup(&$export) {
+  _features_plumber_export_ctools_cleanup('box', $export);
 }
 
 /**
